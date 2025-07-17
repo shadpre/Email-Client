@@ -1,0 +1,23 @@
+/**
+ * Represents a summary of an individual email message.
+ * Contains essential metadata without the full email content for performance optimization.
+ */
+export interface EmailSummary {
+  /** Unique identifier for the email message on the IMAP server */
+  uid: number;
+
+  /** The email subject line (displays "No Subject" if empty) */
+  subject: string;
+
+  /** The original sender information as received from the email header */
+  from: string;
+
+  /** The extracted email address of the sender (parsed from From field) */
+  fromEmail: string;
+
+  /** The date and time when the email was sent or received */
+  date: string;
+
+  /** The size of the email in bytes (used for calculating storage usage) */
+  size: number;
+}
