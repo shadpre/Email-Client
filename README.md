@@ -68,8 +68,8 @@ chmod +x start.sh
 
 ```powershell
 # Press Ctrl+C in the terminal running start.ps1
-# Or use the stop command:
-.\stop.ps1  # If available
+# Or use PowerShell to stop processes:
+Get-Process | Where-Object {$_.ProcessName -match "node|dotnet|EmailClient"} | Stop-Process -Force
 ```
 
 **Linux/macOS:**
@@ -166,7 +166,8 @@ npm start
 - `POST /api/email/connect` - Establish IMAP connection
 - `GET /api/email/emails-by-sender` - Retrieve grouped emails
 - `GET /api/email/processing-status` - Get operation progress
-- `DELETE /api/email/delete-by-sender` - Bulk delete by sender
+- `DELETE /api/email/delete` - Delete specific emails by UID
+- `DELETE /api/email/delete-by-sender/{senderEmail}` - Bulk delete by sender
 - `POST /api/email/disconnect` - Close IMAP connection
 
 ### Security Considerations
@@ -175,6 +176,13 @@ npm start
 - 🔒 **Local processing**: All operations happen on your machine
 - 🛡️ **SSL/TLS**: Secure connections to email servers
 - 🔑 **App passwords**: Supports modern authentication methods
+
+### Technology Stack
+
+- **Backend**: ASP.NET Core 8.0, MailKit, Dependency Injection
+- **Frontend**: React 18, TypeScript, Axios, Modern Hooks
+- **Email Protocol**: IMAP with SSL/TLS encryption
+- **API Documentation**: Swagger/OpenAPI available at http://localhost:5000/swagger
 
 ## 📧 Email Provider Setup
 
@@ -229,8 +237,15 @@ npm start
 - **Frontend startup errors**:
   - ✅ Ensure Node.js is installed: `node --version`
   - ✅ Clear npm cache: `npm cache clean --force`
-  - ✅ Delete node_modules and reinstall: `rm -rf node_modules && npm install`
+  - ✅ Delete node_modules and reinstall: `rm -rf node_modules && npm install` (Linux/macOS) or `rmdir /s node_modules && npm install` (Windows)
   - ✅ Review frontend.log for specific error messages
+
+### Build Issues
+
+- **Dependency injection errors**:
+  - ✅ Ensure all services are properly registered in Program.cs
+  - ✅ Check that interface implementations match constructor parameters
+  - ✅ Verify .NET 8.0 compatibility
 
 ## ⚠️ Important Notes
 
@@ -279,33 +294,6 @@ If you encounter any issues:
 ✅ **Performance Optimized** - Handles large mailboxes efficiently  
 ✅ **Modern Architecture** - Built with latest technologies and best practices
 
-- Check that port 5000 is not already in use
-- Try running `dotnet restore` in the Backend/EmailClient.Api directory
+## 📄 License
 
-## API Endpoints
-
-The backend API provides these endpoints:
-
-- `POST /api/email/connect` - Connect to IMAP server
-- `GET /api/email/senders` - Get emails grouped by sender
-- `DELETE /api/email/emails` - Delete specific emails by UID
-- `DELETE /api/email/emails/sender/{email}` - Delete all emails from a sender
-- `POST /api/email/disconnect` - Disconnect from IMAP server
-
-API documentation is available at: http://localhost:5000/swagger
-
-## Technology Stack
-
-- **Backend:** ASP.NET Core 8.0, MailKit
-- **Frontend:** React 18, TypeScript, Axios
-- **Email Protocol:** IMAP
-
-## Security Notes
-
-- Credentials are not stored permanently
-- All communication happens locally between your machine and your email server
-- No data is sent to external services (except your email provider)
-
-## License
-
-This project is for personal use. Feel free to modify and adapt it to your needs.
+This project is open source and available under the MIT License.
