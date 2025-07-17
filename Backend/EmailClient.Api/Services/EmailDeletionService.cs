@@ -1,5 +1,6 @@
 using MailKit;
 using MailKit.Search;
+using EmailClient.Api.Models;
 
 namespace EmailClient.Api.Services
 {
@@ -23,7 +24,6 @@ namespace EmailClient.Api.Services
 
             if (uids == null || uids.Count == 0)
             {
-                Console.WriteLine("No email UIDs provided for deletion");
                 return 0;
             }
 
@@ -34,7 +34,6 @@ namespace EmailClient.Api.Services
                 // Convert uint UIDs to UniqueId objects
                 var uniqueIds = uids.Select(uid => new UniqueId(uid)).ToList();
                 
-                Console.WriteLine($"Marking {uniqueIds.Count} emails for deletion");
                 
                 // Mark emails as deleted
                 await inbox.AddFlagsAsync(uniqueIds, MessageFlags.Deleted, true);
@@ -42,12 +41,10 @@ namespace EmailClient.Api.Services
                 // Permanently remove marked emails from server
                 await inbox.ExpungeAsync();
                 
-                Console.WriteLine($"Successfully deleted {uids.Count} emails");
                 return uids.Count;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Failed to delete emails: {ex.Message}");
                 throw new InvalidOperationException($"Failed to delete emails: {ex.Message}", ex);
             }
         }
@@ -59,7 +56,6 @@ namespace EmailClient.Api.Services
 
             if (string.IsNullOrWhiteSpace(senderEmail))
             {
-                Console.WriteLine("Sender email address is required for deletion");
                 throw new ArgumentException("Sender email address cannot be null or empty", nameof(senderEmail));
             }
 
@@ -67,7 +63,6 @@ namespace EmailClient.Api.Services
             {
                 var inbox = _connectionService.Inbox!;
                 
-                Console.WriteLine($"Searching for emails from sender: {senderEmail}");
                 
                 // Search for emails from the specific sender
                 var query = SearchQuery.FromContains(senderEmail);
@@ -75,11 +70,9 @@ namespace EmailClient.Api.Services
                 
                 if (uids.Count == 0)
                 {
-                    Console.WriteLine($"No emails found from sender: {senderEmail}");
                     return 0;
                 }
 
-                Console.WriteLine($"Found {uids.Count} emails from {senderEmail}, marking for deletion");
 
                 // Mark emails as deleted
                 await inbox.AddFlagsAsync(uids, MessageFlags.Deleted, true);
@@ -87,14 +80,124 @@ namespace EmailClient.Api.Services
                 // Permanently remove marked emails from server
                 await inbox.ExpungeAsync();
                 
-                Console.WriteLine($"Successfully deleted {uids.Count} emails from {senderEmail}");
                 return uids.Count;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Failed to delete emails from {senderEmail}: {ex.Message}");
                 throw new InvalidOperationException($"Failed to delete emails from sender: {ex.Message}", ex);
             }
+        }
+
+        /// <inheritdoc />
+        public async Task<int> DeleteEmailsBySenderWithFilterAsync(string senderEmail, DateFilter? dateFilter)
+        {
+            ValidateConnection();
+
+            if (string.IsNullOrWhiteSpace(senderEmail))
+            {
+                throw new ArgumentException("Sender email address cannot be null or empty", nameof(senderEmail));
+            }
+
+            try
+            {
+                var inbox = _connectionService.Inbox!;
+                
+                
+                // Build combined search query for sender and date filter
+                var senderQuery = SearchQuery.FromContains(senderEmail);
+                var dateQuery = BuildSearchQuery(dateFilter);
+                
+                SearchQuery combinedQuery;
+                if (dateQuery == SearchQuery.All)
+                {
+                    combinedQuery = senderQuery;
+                }
+                else
+                {
+                    combinedQuery = SearchQuery.And(senderQuery, dateQuery);
+                }
+                
+                var uids = await inbox.SearchAsync(combinedQuery);
+                
+                if (uids.Count == 0)
+                {
+                    return 0;
+                }
+
+
+                // Mark emails as deleted
+                await inbox.AddFlagsAsync(uids, MessageFlags.Deleted, true);
+                
+                // Permanently remove marked emails from server
+                await inbox.ExpungeAsync();
+                
+                return uids.Count;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to delete filtered emails from sender: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Builds a search query based on the provided date filter
+        /// </summary>
+        /// <param name="dateFilter">Date filter configuration</param>
+        /// <returns>SearchQuery for the date filter</returns>
+        private static SearchQuery BuildSearchQuery(DateFilter? dateFilter)
+        {
+            if (dateFilter == null || dateFilter.FilterType == DateFilterType.All)
+            {
+                return SearchQuery.All;
+            }
+
+            switch (dateFilter.FilterType)
+            {
+                case DateFilterType.OlderThanDays:
+                    if (dateFilter.Days.HasValue)
+                    {
+                        var cutoffDate = DateTime.Now.AddDays(-dateFilter.Days.Value);
+                        return SearchQuery.DeliveredBefore(cutoffDate);
+                    }
+                    break;
+
+                case DateFilterType.OlderThanMonths:
+                    if (dateFilter.Months.HasValue)
+                    {
+                        var cutoffDate = DateTime.Now.AddMonths(-dateFilter.Months.Value);
+                        return SearchQuery.DeliveredBefore(cutoffDate);
+                    }
+                    break;
+
+                case DateFilterType.OlderThanYears:
+                    if (dateFilter.Years.HasValue)
+                    {
+                        var cutoffDate = DateTime.Now.AddYears(-dateFilter.Years.Value);
+                        return SearchQuery.DeliveredBefore(cutoffDate);
+                    }
+                    break;
+
+                case DateFilterType.DateRange:
+                    if (dateFilter.StartDate.HasValue && dateFilter.EndDate.HasValue)
+                    {
+                        return SearchQuery.And(
+                            SearchQuery.DeliveredAfter(dateFilter.StartDate.Value),
+                            SearchQuery.DeliveredBefore(dateFilter.EndDate.Value.AddDays(1))
+                        );
+                    }
+                    else if (dateFilter.StartDate.HasValue)
+                    {
+                        return SearchQuery.DeliveredAfter(dateFilter.StartDate.Value);
+                    }
+                    else if (dateFilter.EndDate.HasValue)
+                    {
+                        return SearchQuery.DeliveredBefore(dateFilter.EndDate.Value.AddDays(1));
+                    }
+                    break;
+            }
+
+            // Fallback to all emails if filter configuration is invalid
+            return SearchQuery.All;
         }
 
         /// <summary>

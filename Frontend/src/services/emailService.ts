@@ -1,8 +1,12 @@
 import { ConnectionService } from "./ConnectionService";
 import { EmailRetrievalService } from "./EmailRetrievalService";
 import { EmailDeletionService } from "./EmailDeletionService";
-import { ImapConfig, SenderGroup, ProcessingStatus } from "../types";
-
+import {
+  ImapConfig,
+  SenderGroup,
+  ProcessingStatus,
+  DateFilter,
+} from "../types";
 /**
  * Main facade service that provides a unified interface for all email operations.
  * Coordinates between different specialized services following the Facade pattern.
@@ -12,7 +16,6 @@ export class EmailService {
   private readonly connectionService = new ConnectionService();
   private readonly retrievalService = new EmailRetrievalService();
   private readonly deletionService = new EmailDeletionService();
-
   /**
    * Establishes a connection to an IMAP server.
    *
@@ -22,14 +25,12 @@ export class EmailService {
   async connect(config: ImapConfig): Promise<boolean> {
     return this.connectionService.connect(config);
   }
-
   /**
    * Disconnects from the IMAP server.
    */
   async disconnect(): Promise<void> {
     return this.connectionService.disconnect();
   }
-
   /**
    * Retrieves all emails grouped by sender.
    *
@@ -38,7 +39,17 @@ export class EmailService {
   async getEmailsBySender(): Promise<SenderGroup[]> {
     return this.retrievalService.getEmailsBySender();
   }
-
+  /**
+   * Retrieves emails grouped by sender with optional date filtering.
+   *
+   * @param dateFilter - Optional date filter to apply
+   * @returns Promise resolving to filtered sender groups with email statistics
+   */
+  async getEmailsBySenderWithFilter(
+    dateFilter?: DateFilter | null
+  ): Promise<SenderGroup[]> {
+    return this.retrievalService.getEmailsBySenderWithFilter(dateFilter);
+  }
   /**
    * Gets the current processing status for operations.
    *
@@ -47,7 +58,6 @@ export class EmailService {
   async getProcessingStatus(): Promise<ProcessingStatus> {
     return this.retrievalService.getProcessingStatus();
   }
-
   /**
    * Deletes specific emails by their UIDs.
    *
@@ -57,7 +67,6 @@ export class EmailService {
   async deleteEmails(emailUids: number[]): Promise<number> {
     return this.deletionService.deleteEmails(emailUids);
   }
-
   /**
    * Deletes all emails from a specific sender with confirmation.
    *
@@ -74,15 +83,35 @@ export class EmailService {
       senderEmail,
       emailCount
     );
-
     if (!confirmed) {
-      console.log(`User cancelled deletion of emails from ${senderEmail}`);
       return 0;
     }
-
     return this.deletionService.deleteEmailsBySender(senderEmail);
   }
+  /**
+   * Deletes emails from a specific sender with date filter applied.
+   * Shows confirmation dialog before proceeding with bulk deletion.
+   *
+   * @param senderEmail - Sender's email address
+   * @param emailCount - Number of emails (for confirmation dialog)
+   * @param dateFilter - Date filter to apply for targeted deletion
+   * @returns Promise resolving to number of deleted emails, or 0 if cancelled
+   */
+  async deleteEmailsBySenderWithFilter(
+    senderEmail: string,
+    emailCount: number,
+    dateFilter: DateFilter
+  ): Promise<number> {
+    // Show confirmation dialog before proceeding with bulk deletion
+    const confirmed = await this.deletionService.confirmBulkDeletion(
+      senderEmail,
+      emailCount
+    );
+    if (!confirmed) {
+      return 0;
+    }
+    return this.deletionService.deleteEmailsBySenderWithFilter(senderEmail, dateFilter);
+  }
 }
-
 // Export a singleton instance for use throughout the application
 export const emailService = new EmailService();

@@ -59,7 +59,7 @@ export const SenderGroupList: React.FC<SenderGroupListProps> = ({
       >
         {senderGroups.map((group, index) => (
           <div
-            key={group.senderEmail}
+            key={group.SenderEmail}
             style={{
               display: "flex",
               alignItems: "center",
@@ -86,7 +86,7 @@ export const SenderGroupList: React.FC<SenderGroupListProps> = ({
                 fontSize: "14px",
               }}
             >
-              {group.senderEmail}
+              {group.SenderEmail}
             </div>
 
             {/* Email count */}
@@ -98,13 +98,13 @@ export const SenderGroupList: React.FC<SenderGroupListProps> = ({
                 color: "#495057",
               }}
             >
-              {group.emailCount.toLocaleString()}
+              {group.EmailCount.toLocaleString()}
             </div>
 
             {/* Delete button */}
             <div style={{ flex: 1, textAlign: "center" }}>
               <button
-                onClick={() => onDeleteSender(group.senderEmail)}
+                onClick={() => onDeleteSender(group.SenderEmail)}
                 disabled={isDeleting}
                 style={{
                   backgroundColor: isDeleting ? "#6c757d" : "#dc3545",
@@ -145,7 +145,7 @@ export const SenderGroupList: React.FC<SenderGroupListProps> = ({
       >
         Total emails:{" "}
         {senderGroups
-          .reduce((sum, group) => sum + group.emailCount, 0)
+          .reduce((sum, group) => sum + group.EmailCount, 0)
           .toLocaleString()}
       </div>
     </div>

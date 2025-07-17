@@ -38,25 +38,27 @@ namespace EmailClient.Api.Services
         /// <inheritdoc />
         public async Task<List<SenderGroup>> GetEmailsBySenderAsync()
         {
-            Console.WriteLine($"GetEmailsBySenderAsync called. Client connected: {_connectionService.IsConnected}");
-            
+            return await GetEmailsBySenderAsync(null);
+        }
+
+        /// <inheritdoc />
+        public async Task<List<SenderGroup>> GetEmailsBySenderAsync(DateFilter? dateFilter)
+        {
             // Validate connection state
             if (!_connectionService.IsConnected || _connectionService.Inbox == null)
             {
-                Console.WriteLine("Not connected to IMAP server");
                 throw new InvalidOperationException("Not connected to IMAP server");
             }
 
             try
             {
-                return await ProcessEmailsInBatches();
+                return await ProcessEmailsInBatches(dateFilter);
             }
             catch (Exception ex)
             {
                 // Reset processing status on error
                 _processingStatus.IsProcessing = false;
                 _processingStatus.CurrentOperation = "Error occurred";
-                Console.WriteLine($"Error in GetEmailsBySenderAsync: {ex.Message}");
                 throw new InvalidOperationException($"Failed to retrieve emails: {ex.Message}", ex);
             }
         }
@@ -64,8 +66,9 @@ namespace EmailClient.Api.Services
         /// <summary>
         /// Processes all emails in the inbox using batch processing for memory efficiency
         /// </summary>
+        /// <param name="dateFilter">Optional date filter to apply</param>
         /// <returns>List of sender groups with aggregated email information</returns>
-        private async Task<List<SenderGroup>> ProcessEmailsInBatches()
+        private async Task<List<SenderGroup>> ProcessEmailsInBatches(DateFilter? dateFilter = null)
         {
             var inbox = _connectionService.Inbox!;
             
@@ -75,21 +78,20 @@ namespace EmailClient.Api.Services
 
             // Get total email count
             var totalCount = inbox.Count;
-            Console.WriteLine($"Total emails in inbox: {totalCount}");
 
             if (totalCount == 0)
             {
-                Console.WriteLine("No emails found in inbox");
                 return new List<SenderGroup>();
             }
 
-            // Search for all emails (gets UIDs without downloading content)
-            var uids = await inbox.SearchAsync(SearchQuery.All);
-            Console.WriteLine($"Found {uids.Count} email UIDs");
+            // Build search query based on date filter
+            var searchQuery = BuildSearchQuery(dateFilter);
+
+            // Search for emails matching the criteria (gets UIDs without downloading content)
+            var uids = await inbox.SearchAsync(searchQuery);
 
             if (uids.Count == 0)
             {
-                Console.WriteLine("No email UIDs returned from search");
                 return new List<SenderGroup>();
             }
 
@@ -116,8 +118,6 @@ namespace EmailClient.Api.Services
             _processingStatus.ProcessedEmails = 0;
             _processingStatus.TotalBatches = (totalEmails + BatchSize - 1) / BatchSize;
             _processingStatus.CurrentOperation = "Processing emails";
-            
-            Console.WriteLine($"Processing {totalEmails} emails in batches of {BatchSize}...");
         }
 
         /// <summary>
@@ -136,7 +136,6 @@ namespace EmailClient.Api.Services
                 var batch = uids.Skip(i).Take(BatchSize).ToList();
                 _processingStatus.CurrentBatch = i / BatchSize + 1;
                 
-                Console.WriteLine($"Processing batch {_processingStatus.CurrentBatch}/{_processingStatus.TotalBatches} ({batch.Count} emails)");
                 
                 await ProcessBatch(inbox, batch, senderEmailCounts);
             }
@@ -177,9 +176,26 @@ namespace EmailClient.Api.Services
             IMessageSummary message, 
             Dictionary<string, SenderGroupBuilder> senderEmailCounts)
         {
-            var fromAddress = message.Envelope!.From.FirstOrDefault()?.ToString() ?? "Unknown";
+            // Skip messages with missing or invalid envelope data
+            if (message.Envelope?.From == null || !message.Envelope.From.Any())
+            {
+                return;
+            }
+
+            var fromAddress = message.Envelope.From.FirstOrDefault()?.ToString() ?? "";
+            if (string.IsNullOrWhiteSpace(fromAddress))
+            {
+                return;
+            }
+
             var senderEmail = _emailParsingService.ExtractEmail(fromAddress);
             
+            // Only skip if we really can't extract anything useful
+            if (string.IsNullOrWhiteSpace(senderEmail))
+            {
+                return;
+            }
+
             // Create or get existing sender group builder
             if (!senderEmailCounts.ContainsKey(senderEmail))
             {
@@ -217,11 +233,30 @@ namespace EmailClient.Api.Services
         /// <returns>Sorted list of sender groups</returns>
         private static List<SenderGroup> ConvertToSenderGroups(Dictionary<string, SenderGroupBuilder> senderEmailCounts)
         {
-            return senderEmailCounts.Values
+            
+            var validGroups = senderEmailCounts.Values
+                .Where(builder => 
+                    builder.EmailCount > 0 && // Only include groups with actual emails
+                    !string.IsNullOrWhiteSpace(builder.SenderEmail) && // Must have valid email
+                    builder.SenderEmail != "Unknown" && // Filter out unknown senders
+                    builder.SenderEmail != "unknown@example.com" && // Filter out placeholder emails
+                    builder.SenderEmail.Contains("@") && // Basic email validation
+                    !builder.SenderEmail.StartsWith("unknown", StringComparison.OrdinalIgnoreCase) // Filter out unknown variants
+                )
+                .ToList();
+                
+            
+            // Log some examples of final data
+            var examples = validGroups.Take(3);
+            foreach (var example in examples)
+            {
+            }
+
+            return validGroups
                 .Select(builder => new SenderGroup
                 {
                     SenderEmail = builder.SenderEmail,
-                    SenderName = builder.SenderName,
+                    SenderName = !string.IsNullOrWhiteSpace(builder.SenderName) ? builder.SenderName : builder.SenderEmail,
                     EmailCount = builder.EmailCount,
                     TotalSize = builder.TotalSize,
                     Emails = builder.Emails.OrderByDescending(e => e.Date).ToList()
@@ -237,7 +272,68 @@ namespace EmailClient.Api.Services
         {
             _processingStatus.IsProcessing = false;
             _processingStatus.CurrentOperation = "Completed";
-            Console.WriteLine($"Created {_processingStatus.ProcessedEmails} email entries across multiple senders");
+        }
+
+        /// <summary>
+        /// Builds IMAP search query based on date filter criteria
+        /// </summary>
+        /// <param name="dateFilter">Date filter to apply, or null for all emails</param>
+        /// <returns>SearchQuery object for IMAP search</returns>
+        private static SearchQuery BuildSearchQuery(DateFilter? dateFilter)
+        {
+            if (dateFilter == null || dateFilter.FilterType == DateFilterType.All)
+            {
+                return SearchQuery.All;
+            }
+
+            switch (dateFilter.FilterType)
+            {
+                case DateFilterType.OlderThanDays:
+                    if (dateFilter.Days.HasValue)
+                    {
+                        var cutoffDate = DateTime.Now.AddDays(-dateFilter.Days.Value);
+                        return SearchQuery.DeliveredBefore(cutoffDate);
+                    }
+                    break;
+
+                case DateFilterType.OlderThanMonths:
+                    if (dateFilter.Months.HasValue)
+                    {
+                        var cutoffDate = DateTime.Now.AddMonths(-dateFilter.Months.Value);
+                        return SearchQuery.DeliveredBefore(cutoffDate);
+                    }
+                    break;
+
+                case DateFilterType.OlderThanYears:
+                    if (dateFilter.Years.HasValue)
+                    {
+                        var cutoffDate = DateTime.Now.AddYears(-dateFilter.Years.Value);
+                        return SearchQuery.DeliveredBefore(cutoffDate);
+                    }
+                    break;
+
+                case DateFilterType.DateRange:
+                    if (dateFilter.StartDate.HasValue && dateFilter.EndDate.HasValue)
+                    {
+                        // Use AND to combine date range filters
+                        return SearchQuery.And(
+                            SearchQuery.DeliveredAfter(dateFilter.StartDate.Value),
+                            SearchQuery.DeliveredBefore(dateFilter.EndDate.Value.AddDays(1)) // Add 1 day to make end date inclusive
+                        );
+                    }
+                    else if (dateFilter.StartDate.HasValue)
+                    {
+                        return SearchQuery.DeliveredAfter(dateFilter.StartDate.Value);
+                    }
+                    else if (dateFilter.EndDate.HasValue)
+                    {
+                        return SearchQuery.DeliveredBefore(dateFilter.EndDate.Value.AddDays(1)); // Add 1 day to make end date inclusive
+                    }
+                    break;
+            }
+
+            // Fallback to all emails if filter configuration is invalid
+            return SearchQuery.All;
         }
     }
 }

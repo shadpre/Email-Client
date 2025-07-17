@@ -4,20 +4,20 @@
  */
 export interface EmailSummary {
   /** Unique identifier for the email message on the IMAP server */
-  uid: number;
+  Uid: number;
 
   /** The email subject line (displays "No Subject" if empty) */
-  subject: string;
+  Subject: string;
 
   /** The original sender information as received from the email header */
-  from: string;
+  From: string;
 
   /** The extracted email address of the sender (parsed from From field) */
-  fromEmail: string;
+  FromEmail: string;
 
   /** The date and time when the email was sent or received */
-  date: string;
+  Date: string;
 
   /** The size of the email in bytes (used for calculating storage usage) */
-  size: number;
+  Size: number;
 }

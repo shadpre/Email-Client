@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { SenderGroup, ProcessingStatus } from "../types";
+import { SenderGroup, ProcessingStatus, DateFilter } from "../types";
 import { emailService } from "../services/emailService";
 import { SearchAndSort } from "./SearchAndSort";
 import { SenderGroupItem } from "./SenderGroupItem";
 import { LoadingView } from "./LoadingView";
 import { ErrorView } from "./ErrorView";
 import { ProgressIndicator } from "./ProgressIndicator";
+import { DateFilterComponent } from "./DateFilterComponent";
 
 export const EmailManager: React.FC = () => {
   const [senderGroups, setSenderGroups] = useState<SenderGroup[]>([]);
@@ -17,6 +18,7 @@ export const EmailManager: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [processingStatus, setProcessingStatus] =
     useState<ProcessingStatus | null>(null);
+  const [dateFilter, setDateFilter] = useState<DateFilter | null>(null);
 
   const filterAndSortGroups = useCallback(() => {
     let filtered = senderGroups;
@@ -25,8 +27,8 @@ export const EmailManager: React.FC = () => {
     if (searchTerm) {
       filtered = filtered.filter(
         (group) =>
-          group.senderName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          group.senderEmail.toLowerCase().includes(searchTerm.toLowerCase())
+          group.SenderName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          group.SenderEmail.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -34,11 +36,11 @@ export const EmailManager: React.FC = () => {
     filtered = [...filtered].sort((a, b) => {
       switch (sortBy) {
         case "count":
-          return b.emailCount - a.emailCount;
+          return b.EmailCount - a.EmailCount;
         case "size":
-          return b.totalSize - a.totalSize;
+          return b.TotalSize - a.TotalSize;
         case "name":
-          return a.senderName.localeCompare(b.senderName);
+          return a.SenderName.localeCompare(b.SenderName);
         default:
           return 0;
       }
@@ -55,12 +57,17 @@ export const EmailManager: React.FC = () => {
     filterAndSortGroups();
   }, [senderGroups, searchTerm, sortBy, filterAndSortGroups]);
 
-  const loadEmails = async () => {
+  // Handle date filter changes
+  const handleDateFilterChange = (newDateFilter: DateFilter | null) => {
+    setDateFilter(newDateFilter);
+    loadEmails(newDateFilter);
+  };
+
+  const loadEmails = async (currentDateFilter: DateFilter | null = null) => {
     try {
       setLoading(true);
       setError(null);
       setProcessingStatus(null);
-      console.log("Loading emails from backend...");
 
       // Start polling for progress if it's a large mailbox
       const progressInterval = setInterval(async () => {
@@ -75,9 +82,12 @@ export const EmailManager: React.FC = () => {
         }
       }, 1000);
 
-      const groups = await emailService.getEmailsBySender();
-      console.log("Received groups:", groups);
-      setSenderGroups(groups);
+      // Use filtered service if date filter is provided, otherwise use the standard service
+      const groups = currentDateFilter
+        ? await emailService.getEmailsBySenderWithFilter(currentDateFilter)
+        : await emailService.getEmailsBySender();
+
+      setSenderGroups(groups || []);
       clearInterval(progressInterval);
       setProcessingStatus(null);
     } catch (error: any) {
@@ -107,12 +117,26 @@ export const EmailManager: React.FC = () => {
     emailCount: number
   ) => {
     try {
-      const deletedCount = await emailService.deleteEmailsBySender(
-        senderEmail,
-        emailCount
-      );
+      let deletedCount: number;
+      
+      if (dateFilter) {
+        // Use filtered delete when date filter is active
+        deletedCount = await emailService.deleteEmailsBySenderWithFilter(
+          senderEmail,
+          emailCount,
+          dateFilter
+        );
+      } else {
+        // Use regular delete when no date filter is active
+        deletedCount = await emailService.deleteEmailsBySender(
+          senderEmail,
+          emailCount
+        );
+      }
+      
       if (deletedCount > 0) {
-        alert(`${deletedCount} emails from ${senderEmail} have been deleted.`);
+        const filterMessage = dateFilter ? " (matching the current date filter)" : "";
+        alert(`${deletedCount} emails from ${senderEmail}${filterMessage} have been deleted.`);
         await loadEmails(); // Refresh the list
       }
     } catch (error) {
@@ -153,7 +177,7 @@ export const EmailManager: React.FC = () => {
       >
         <h2>Email Manager ({filteredGroups.length} senders)</h2>
         <button
-          onClick={loadEmails}
+          onClick={() => loadEmails(dateFilter)}
           style={{
             padding: "10px 20px",
             backgroundColor: "#28a745",
@@ -167,6 +191,12 @@ export const EmailManager: React.FC = () => {
           Refresh
         </button>
       </div>
+
+      <DateFilterComponent
+        dateFilter={dateFilter}
+        onDateFilterChange={handleDateFilterChange}
+        isLoading={loading}
+      />
 
       <SearchAndSort
         searchTerm={searchTerm}
@@ -193,12 +223,12 @@ export const EmailManager: React.FC = () => {
         <div style={{ display: "flex", flexDirection: "column" }}>
           {filteredGroups.map((group) => (
             <SenderGroupItem
-              key={group.senderEmail}
+              key={group.SenderEmail}
               group={group}
-              isExpanded={expandedGroups.has(group.senderEmail)}
-              onToggle={() => toggleGroup(group.senderEmail)}
+              isExpanded={expandedGroups.has(group.SenderEmail)}
+              onToggle={() => toggleGroup(group.SenderEmail)}
               onDeleteAll={() =>
-                deleteAllFromSender(group.senderEmail, group.emailCount)
+                deleteAllFromSender(group.SenderEmail, group.EmailCount)
               }
             />
           ))}

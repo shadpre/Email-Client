@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using EmailClient.Api.Models;
 using EmailClient.Api.Services;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace EmailClient.Api.Controllers
 {
@@ -97,6 +99,38 @@ namespace EmailClient.Api.Controllers
         }
 
         /// <summary>
+        /// Retrieves and groups emails by sender with optional date filtering
+        /// </summary>
+        /// <param name="request">Request containing date filter criteria</param>
+        /// <returns>List of sender groups with aggregated email information</returns>
+        /// <response code="200">Successfully retrieved filtered email groups</response>
+        /// <response code="400">No connection established or operation failed</response>
+        /// <response code="500">Internal server error</response>
+        [HttpPost("emails-by-sender/filter")]
+        [ProducesResponseType(typeof(SenderGroup[]), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetEmailsBySenderWithFilter([FromBody] EmailsByFilterRequest request)
+        {
+            try
+            {
+                
+                var dateFilter = request?.DateFilter;
+                
+                var senderGroups = await _imapService.GetEmailsBySenderAsync(dateFilter);
+                return Ok(senderGroups);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest($"Operation failed: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Deletes specific emails by their unique identifiers
         /// </summary>
         /// <param name="request">Request containing array of email UIDs to delete</param>
@@ -152,6 +186,43 @@ namespace EmailClient.Api.Controllers
                 }
 
                 var deletedCount = await _imapService.DeleteEmailsBySenderAsync(senderEmail);
+                return Ok(deletedCount);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest($"Operation failed: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Deletes emails from a specific sender that match the date filter criteria
+        /// </summary>
+        /// <param name="senderEmail">Email address of the sender whose emails should be deleted</param>
+        /// <param name="request">Request containing the date filter criteria</param>
+        /// <returns>Number of emails successfully deleted</returns>
+        /// <response code="200">Emails deleted successfully</response>
+        /// <response code="400">Invalid request parameters</response>
+        /// <response code="500">Internal server error</response>
+        [HttpDelete("delete-by-sender-filtered/{senderEmail}")]
+        [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> DeleteEmailsBySenderWithFilter(
+            string senderEmail, 
+            [FromBody] EmailsByFilterRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(senderEmail))
+                {
+                    return BadRequest("Sender email address is required");
+                }
+
+                var deletedCount = await _imapService.DeleteEmailsBySenderWithFilterAsync(senderEmail, request?.DateFilter);
                 return Ok(deletedCount);
             }
             catch (InvalidOperationException ex)

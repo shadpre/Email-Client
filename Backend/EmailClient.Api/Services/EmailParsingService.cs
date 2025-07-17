@@ -13,15 +13,28 @@ namespace EmailClient.Api.Services
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(fromString))
+                {
+                    return "unknown@example.com";
+                }
+
                 // Use MimeKit's robust email parsing
                 var mailboxAddress = MailboxAddress.Parse(fromString);
-                return mailboxAddress.Address;
+                var email = mailboxAddress.Address;
+                
+                // Validate the email address
+                if (string.IsNullOrWhiteSpace(email) || !email.Contains("@"))
+                {
+                    return "unknown@example.com";
+                }
+                
+                return email.ToLowerInvariant(); // Normalize to lowercase
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"Failed to parse email from '{fromString}': {ex.Message}");
-                // Return the original string as fallback if parsing fails
-                return fromString;
+                // Try simple fallback extraction
+                var fallback = ExtractEmailFallback(fromString);
+                return !string.IsNullOrWhiteSpace(fallback) ? fallback : "unknown@example.com";
             }
         }
 
@@ -30,19 +43,46 @@ namespace EmailClient.Api.Services
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(fromString))
+                {
+                    return "Unknown Sender";
+                }
+
                 // Use MimeKit's robust email parsing
                 var mailboxAddress = MailboxAddress.Parse(fromString);
                 
                 // Return name if available, otherwise fall back to email address
-                return !string.IsNullOrEmpty(mailboxAddress.Name) 
+                var name = !string.IsNullOrWhiteSpace(mailboxAddress.Name) 
                     ? mailboxAddress.Name 
                     : mailboxAddress.Address;
+                    
+                return !string.IsNullOrWhiteSpace(name) ? name : "Unknown Sender";
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"Failed to parse name from '{fromString}': {ex.Message}");
-                // Return the original string as fallback if parsing fails
-                return fromString;
+                // Try simple fallback extraction
+                var fallback = ExtractEmailFallback(fromString);
+                return !string.IsNullOrWhiteSpace(fallback) ? fallback : "Unknown Sender";
+            }
+        }
+
+        /// <summary>
+        /// Simple fallback email extraction when MimeKit parsing fails
+        /// </summary>
+        /// <param name="fromString">The from string to parse</param>
+        /// <returns>Extracted email or empty string if not found</returns>
+        private string ExtractEmailFallback(string fromString)
+        {
+            try
+            {
+                // Look for email pattern using regex
+                var emailPattern = @"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}";
+                var match = System.Text.RegularExpressions.Regex.Match(fromString, emailPattern);
+                return match.Success ? match.Value.ToLowerInvariant() : string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
             }
         }
     }

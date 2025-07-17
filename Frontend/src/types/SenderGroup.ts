@@ -6,20 +6,20 @@ import { EmailSummary } from "./EmailSummary";
  */
 export interface SenderGroup {
   /** The email address of the sender (used as the primary identifier) */
-  senderEmail: string;
+  SenderEmail: string;
 
   /** The display name of the sender (fallback to email if name not available) */
-  senderName: string;
+  SenderName: string;
 
   /** Total number of emails from this sender in the mailbox */
-  emailCount: number;
+  EmailCount: number;
 
   /** Combined size of all emails from this sender in bytes */
-  totalSize: number;
+  TotalSize: number;
 
   /**
    * A limited collection of recent emails from this sender for preview purposes.
    * Limited to 10 emails for performance optimization.
    */
-  emails: EmailSummary[];
+  Emails: EmailSummary[];
 }

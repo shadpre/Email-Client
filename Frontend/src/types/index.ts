@@ -4,3 +4,5 @@ export type { EmailSummary } from "./EmailSummary";
 export type { SenderGroup } from "./SenderGroup";
 export type { DeleteRequest } from "./DeleteRequest";
 export type { ProcessingStatus } from "./ProcessingStatus";
+export type { DateFilter, EmailsByFilterRequest } from "./DateFilter";
+export { DateFilterType, DateFilterHelpers } from "./DateFilter";

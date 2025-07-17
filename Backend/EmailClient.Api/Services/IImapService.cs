@@ -23,6 +23,13 @@ namespace EmailClient.Api.Services
         Task<List<SenderGroup>> GetEmailsBySenderAsync();
 
         /// <summary>
+        /// Retrieves emails grouped by sender with optional date filtering
+        /// </summary>
+        /// <param name="dateFilter">Optional date filter to apply when retrieving emails</param>
+        /// <returns>Collection of sender groups with email statistics</returns>
+        Task<List<SenderGroup>> GetEmailsBySenderAsync(DateFilter? dateFilter);
+
+        /// <summary>
         /// Deletes specific emails by their UIDs
         /// </summary>
         /// <param name="uids">Email unique identifiers to delete</param>
@@ -35,6 +42,14 @@ namespace EmailClient.Api.Services
         /// <param name="senderEmail">Sender's email address</param>
         /// <returns>Number of emails deleted</returns>
         Task<int> DeleteEmailsBySenderAsync(string senderEmail);
+
+        /// <summary>
+        /// Deletes emails from a specific sender that match the date filter criteria
+        /// </summary>
+        /// <param name="senderEmail">Sender's email address</param>
+        /// <param name="dateFilter">Optional date filter to apply when deleting emails</param>
+        /// <returns>Number of emails deleted</returns>
+        Task<int> DeleteEmailsBySenderWithFilterAsync(string senderEmail, DateFilter? dateFilter);
 
         /// <summary>
         /// Gets the current processing status for long-running operations

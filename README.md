@@ -7,7 +7,8 @@ A powerful IMAP email client designed to help you clean up your mailbox efficien
 - 🔐 **Universal IMAP Support**: Connect to any IMAP email server (Gmail, Outlook, Yahoo, custom servers)
 - 📧 **Smart Email Grouping**: View emails organized by sender with detailed statistics
 - 🔍 **Advanced Search & Filter**: Search by sender name or email address with real-time filtering
-- 📊 **Flexible Sorting**: Sort by email count, total size, or sender name
+- � **Date Filtering**: Filter emails by date ranges (older than N days/months/years or specific dates)
+- �📊 **Flexible Sorting**: Sort by email count, total size, sender name, or date ranges
 - 🗑️ **Bulk Operations**: Delete all emails from specific senders with confirmation dialogs
 - ⚡ **Performance Optimized**: Handles large mailboxes (20k+ emails) with batch processing
 - 📈 **Progress Tracking**: Real-time progress indicators for long-running operations
@@ -136,13 +137,22 @@ npm start
 
 3. **Connect**: Click "Connect to Email Server" and wait for connection confirmation
 
+4. **Optional - Set Date Filter**:
+   - Choose from preset ranges (30, 90, 180, 365 days)
+   - Or select "Custom" for specific date ranges
+   - Or leave as "All emails" to process entire mailbox
+
 ### Managing Your Mailbox
 
 1. **View Email Groups**: After connecting, emails are automatically grouped by sender
 2. **Search & Filter**: Use the search box to find specific senders
-3. **Sort Results**: Choose sorting by email count, total size, or sender name
-4. **Expand Details**: Click on any sender group to view individual emails
-5. **Bulk Delete**: Click "Delete All" next to any sender to remove all their emails (with confirmation)
+3. **Date Filtering**:
+   - Use the date filter dropdown to show emails older than specific periods
+   - Options include: older than 30/90/180/365 days, or custom date ranges
+   - Helps identify and clean up old emails efficiently
+4. **Sort Results**: Choose sorting by email count, total size, sender name, or date ranges
+5. **Expand Details**: Click on any sender group to view individual emails
+6. **Bulk Delete**: Click "Delete All" next to any sender to remove all their emails (with confirmation)
 
 ### Performance with Large Mailboxes
 
@@ -150,6 +160,8 @@ npm start
 - ⏱️ **Progress tracking** shows real-time status for long operations
 - 📊 **Memory efficient** processing prevents browser/server crashes
 - 🔄 **Resumable operations** can be stopped and restarted safely
+- 📅 **Smart date filtering** reduces processing time by filtering at server level
+- 🎯 **Targeted cleanup** with date ranges helps focus on specific time periods
 
 ## 🔧 Technical Details
 
@@ -164,10 +176,11 @@ npm start
 ### API Endpoints
 
 - `POST /api/email/connect` - Establish IMAP connection
-- `GET /api/email/emails-by-sender` - Retrieve grouped emails
+- `GET /api/email/emails-by-sender` - Retrieve grouped emails with optional date filters
 - `GET /api/email/processing-status` - Get operation progress
 - `DELETE /api/email/delete` - Delete specific emails by UID
 - `DELETE /api/email/delete-by-sender/{senderEmail}` - Bulk delete by sender
+- `DELETE /api/email/delete-by-date-range` - Bulk delete emails older than specified date
 - `POST /api/email/disconnect` - Close IMAP connection
 
 ### Security Considerations
@@ -182,6 +195,7 @@ npm start
 - **Backend**: ASP.NET Core 8.0, MailKit, Dependency Injection
 - **Frontend**: React 18, TypeScript, Axios, Modern Hooks
 - **Email Protocol**: IMAP with SSL/TLS encryption
+- **Date Processing**: Advanced date filtering with server-side IMAP search optimization
 - **API Documentation**: Swagger/OpenAPI available at http://localhost:5000/swagger
 
 ## 📧 Email Provider Setup
@@ -225,6 +239,15 @@ npm start
   - ⏱️ Be patient - processing 20k+ emails takes time
   - 📊 Monitor progress bar for status updates
   - 💾 Close other memory-intensive applications
+  - 📅 Use date filters to reduce dataset size for faster processing
+
+### Date Filter Issues
+
+- **Date filter not working as expected**:
+  - ✅ Ensure your email server supports IMAP SEARCH with date criteria
+  - ✅ Check that email dates are properly formatted
+  - ✅ Some servers may have timezone differences affecting date calculations
+  - ✅ Try broader date ranges if specific dates don't return expected results
 
 ### Application Won't Start
 

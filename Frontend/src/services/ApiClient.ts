@@ -1,5 +1,4 @@
 import axios, { AxiosInstance } from "axios";
-
 /**
  * Base HTTP client configuration for the email client API.
  * Provides a centralized axios instance with common configuration.
@@ -7,10 +6,8 @@ import axios, { AxiosInstance } from "axios";
 export class ApiClient {
   private static instance: ApiClient;
   private readonly axiosInstance: AxiosInstance;
-
   /** Base URL for the email client API */
   private static readonly API_BASE_URL = "http://localhost:5000/api";
-
   private constructor() {
     this.axiosInstance = axios.create({
       baseURL: ApiClient.API_BASE_URL,
@@ -19,7 +16,6 @@ export class ApiClient {
         "Content-Type": "application/json",
       },
     });
-
     // Add request interceptor for logging (development only)
     this.axiosInstance.interceptors.request.use(
       (config) => {
@@ -33,11 +29,9 @@ export class ApiClient {
         return Promise.reject(error);
       }
     );
-
     // Add response interceptor for error handling
     this.axiosInstance.interceptors.response.use(
       (response) => {
-        console.log(`API Response: ${response.status} ${response.config.url}`);
         return response;
       },
       (error) => {
@@ -49,7 +43,6 @@ export class ApiClient {
       }
     );
   }
-
   /**
    * Singleton pattern to ensure single axios instance across the application
    */
@@ -59,7 +52,6 @@ export class ApiClient {
     }
     return ApiClient.instance;
   }
-
   /**
    * Gets the configured axios instance for making HTTP requests
    */

@@ -45,6 +45,12 @@ namespace EmailClient.Api.Services
         }
 
         /// <inheritdoc />
+        public async Task<List<SenderGroup>> GetEmailsBySenderAsync(DateFilter? dateFilter)
+        {
+            return await _retrievalService.GetEmailsBySenderAsync(dateFilter);
+        }
+
+        /// <inheritdoc />
         public async Task<int> DeleteEmailsAsync(List<uint> uids)
         {
             return await _deletionService.DeleteEmailsAsync(uids);
@@ -54,6 +60,12 @@ namespace EmailClient.Api.Services
         public async Task<int> DeleteEmailsBySenderAsync(string senderEmail)
         {
             return await _deletionService.DeleteEmailsBySenderAsync(senderEmail);
+        }
+
+        /// <inheritdoc />
+        public async Task<int> DeleteEmailsBySenderWithFilterAsync(string senderEmail, DateFilter? dateFilter)
+        {
+            return await _deletionService.DeleteEmailsBySenderWithFilterAsync(senderEmail, dateFilter);
         }
 
         /// <inheritdoc />

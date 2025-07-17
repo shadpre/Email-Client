@@ -25,6 +25,23 @@ export const SenderGroupItem: React.FC<SenderGroupItemProps> = ({
   onToggle,
   onDeleteAll,
 }) => {
+  // Defensive programming: ensure group has required properties
+  if (!group) {
+    console.warn("SenderGroupItem: group is null or undefined");
+    return null;
+  }
+
+  const safeGroup = {
+    senderEmail: group.SenderEmail || "unknown@example.com",
+    senderName:
+      group.SenderName && group.SenderName.trim() !== ""
+        ? group.SenderName
+        : group.SenderEmail || "Unknown sender",
+    emailCount: group.EmailCount || 0,
+    totalSize: group.TotalSize || 0,
+    emails: group.Emails || [],
+  };
+
   /**
    * Formats byte size into human-readable format
    */
@@ -76,21 +93,21 @@ export const SenderGroupItem: React.FC<SenderGroupItemProps> = ({
         {/* Sender information */}
         <div style={{ flex: 1 }}>
           <h3 style={{ margin: "0 0 5px 0", fontSize: "16px", color: "#333" }}>
-            {group.senderName || group.senderEmail}
+            {safeGroup.senderName}
           </h3>
           <p style={{ margin: 0, color: "#666", fontSize: "14px" }}>
-            {group.senderEmail}
+            {safeGroup.senderEmail}
           </p>
         </div>
 
         {/* Statistics */}
         <div style={{ textAlign: "right", marginRight: "15px" }}>
           <div style={{ fontSize: "14px", fontWeight: "bold", color: "#333" }}>
-            {group.emailCount.toLocaleString()} email
-            {group.emailCount !== 1 ? "s" : ""}
+            {safeGroup.emailCount.toLocaleString()} email
+            {safeGroup.emailCount !== 1 ? "s" : ""}
           </div>
           <div style={{ fontSize: "12px", color: "#666" }}>
-            {formatSize(group.totalSize)}
+            {formatSize(safeGroup.totalSize)}
           </div>
         </div>
 
@@ -140,69 +157,80 @@ export const SenderGroupItem: React.FC<SenderGroupItemProps> = ({
           <h4
             style={{ margin: "0 0 15px 0", fontSize: "14px", color: "#495057" }}
           >
-            Email Details ({group.emails.length} emails):
+            Email Details ({safeGroup.emails.length} emails):
           </h4>
 
           {/* Scrollable email list */}
           <div style={{ maxHeight: "300px", overflowY: "auto" }}>
-            {group.emails.map((email, index) => (
-              <div
-                key={index}
-                style={{
-                  padding: "12px",
-                  marginBottom: "8px",
-                  backgroundColor: "#fff",
-                  borderRadius: "4px",
-                  border: "1px solid #eee",
-                  transition: "border-color 0.2s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "#007bff";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "#eee";
-                }}
-              >
-                {/* Email subject */}
-                <div
-                  style={{
-                    fontWeight: "500",
-                    marginBottom: "6px",
-                    fontSize: "14px",
-                    color: "#333",
-                    lineHeight: "1.4",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  {email.subject || "(No Subject)"}
-                </div>
+            {safeGroup.emails.map((email, index) => {
+              // Defensive programming for individual email objects
+              const safeEmail = {
+                subject: email?.Subject || "(No Subject)",
+                date: email?.Date || null,
+                size: email?.Size || 0,
+              };
 
-                {/* Email metadata */}
+              return (
                 <div
+                  key={index}
                   style={{
-                    fontSize: "12px",
-                    color: "#666",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                    gap: "8px",
+                    padding: "12px",
+                    marginBottom: "8px",
+                    backgroundColor: "#fff",
+                    borderRadius: "4px",
+                    border: "1px solid #eee",
+                    transition: "border-color 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "#007bff";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "#eee";
                   }}
                 >
-                  <span>
-                    📅{" "}
-                    {new Date(email.date).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                  <span>📊 {formatSize(email.size)}</span>
+                  {/* Email subject */}
+                  <div
+                    style={{
+                      fontWeight: "500",
+                      marginBottom: "6px",
+                      fontSize: "14px",
+                      color: "#333",
+                      lineHeight: "1.4",
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {safeEmail.subject}
+                  </div>
+
+                  {/* Email metadata */}
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "#666",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: "8px",
+                    }}
+                  >
+                    <span>
+                      📅{" "}
+                      {safeEmail.date
+                        ? new Date(safeEmail.date).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "Unknown date"}
+                    </span>
+                    <span>📊 {formatSize(safeEmail.size)}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
